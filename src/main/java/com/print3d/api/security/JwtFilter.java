@@ -46,30 +46,29 @@ public class JwtFilter extends OncePerRequestFilter {
             // Extrai o email gravado dentro do token
             String email = jwtUtil.extrairEmail(token);
 
-            // Só processa se o email foi extraído e o usuário ainda não está autenticado
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                // Busca o usuário no banco pelo email
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                // Valida o token (email bate + não expirou)
-                if (jwtUtil.tokenValido(token, userDetails)) {
+                // Log temporário
+                System.out.println("=== JWT DEBUG ===");
+                System.out.println("Email: " + email);
+                System.out.println("Authorities: " + userDetails.getAuthorities());
+                System.out.println("Token válido: " + jwtUtil.tokenValido(token, userDetails));
+                System.out.println("=================");
 
-                    // Cria o objeto de autenticação com as permissões do usuário
+                if (jwtUtil.tokenValido(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
-                                    null,                        // credentials = null (já autenticado)
-                                    userDetails.getAuthorities() // permissões/roles
+                                    null,
+                                    userDetails.getAuthorities()
                             );
-
-                    // Anexa detalhes da requisição (IP, session) ao token de autenticação
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    // Registra o usuário como autenticado no contexto de segurança do Spring
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
+
         } catch (Exception e) {
             // Token inválido ou expirado — simplesmente não autentica
             // O Spring Security vai retornar 401 automaticamente nas rotas protegidas
@@ -78,4 +77,5 @@ public class JwtFilter extends OncePerRequestFilter {
         // Passa para o próximo filtro da cadeia
         filterChain.doFilter(request, response);
     }
+
 }

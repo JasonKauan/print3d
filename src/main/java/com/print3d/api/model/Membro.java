@@ -16,6 +16,10 @@ public class Membro {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    //foto do membro — URL para a foto de perfil, opcional
+    @Column(name = "foto_url", length = 500)
+    private String fotoUrl;
+
     // Nome completo do membro — obrigatório
     @Column(nullable = false, length = 150)
     private String nome;

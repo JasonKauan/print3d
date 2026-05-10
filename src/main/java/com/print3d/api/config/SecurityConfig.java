@@ -9,7 +9,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,7 +26,6 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity          // habilita @PreAuthorize nos controllers
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -37,77 +35,63 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                // Desabilita CSRF — APIs REST stateless não precisam
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // Configura CORS para aceitar requisições do frontend React
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // Regras de acesso por rota
                 .authorizeHttpRequests(auth -> auth
-
-                        // Rotas públicas — não precisam de token
+                        // Rotas públicas
                         .requestMatchers("/api/v1/auth/**").permitAll()
-
-                        // Catálogo público — qualquer um pode ver os produtos
                         .requestMatchers(HttpMethod.GET, "/api/v1/produtos/**").permitAll()
 
-                        // Só ADMIN pode gerenciar membros e ver financeiro completo
-                        .requestMatchers("/api/v1/membros/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/vendas/resumo").hasRole("ADMIN")
+                        // Rotas do próprio membro — ANTES das regras com {id}
+                        .requestMatchers("/api/v1/membros/me").authenticated()
+                        .requestMatchers("/api/v1/membros/minha-senha").authenticated()
+                        .requestMatchers("/api/v1/membros/minha-foto").authenticated()
 
-                        // Qualquer usuário autenticado pode registrar impressões e ver vendas próprias
+                        // Rotas só para ADMIN
+                        .requestMatchers(HttpMethod.GET,    "/api/v1/membros").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET,    "/api/v1/membros/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST,   "/api/v1/membros").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT,    "/api/v1/membros/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/membros/{id}").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/vendas/resumo").hasRole("ADMIN")
+
+                        // Todo o resto exige autenticação
                         .anyRequest().authenticated()
                 )
-
-                // Stateless — sem sessão no servidor, cada request traz o token
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // Registra o provider de autenticação (DB + BCrypt)
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
-
-                // Insere o JwtFilter ANTES do filtro padrão de usuário/senha do Spring
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-
                 .build();
     }
 
-    // Configura como o Spring vai autenticar: busca no DB e compara com BCrypt
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService); // onde buscar o usuário
-        provider.setPasswordEncoder(passwordEncoder());      // como verificar a senha
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
 
-    // BCrypt é o padrão atual para hash de senhas — nunca guarda senha em texto puro
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // AuthenticationManager é usado pelo AuthController para fazer o login
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
             throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // CORS: permite que o frontend React (localhost:5173) chame a API
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
-        // Em produção, troca pelo domínio real do frontend
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config); // aplica para todas as rotas
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }
