@@ -23,6 +23,7 @@ public class MembroService {
     private final MembroRepository membroRepository;
     private final PasswordEncoder passwordEncoder;
     private final Cloudinary cloudinary;
+    private final EmailService emailService;
 
     public List<MembroResponse> listarTodos() {
         return membroRepository.findAll()
@@ -69,7 +70,14 @@ public class MembroService {
                 .dataSaida(request.getDataSaida())
                 .build();
 
-        return MembroResponse.from(membroRepository.save(membro));
+        MembroResponse response = MembroResponse.from(membroRepository.save(membro));
+
+        // Envia email de boas-vindas em background — não trava a resposta da API
+        if (membro.getEmail() != null) {
+            emailService.enviarBoasVindas(membro.getEmail(), membro.getNome());
+        }
+
+        return response;
     }
 
     public MembroResponse atualizar(Long id, MembroRequest request, String emailRequisitante) {

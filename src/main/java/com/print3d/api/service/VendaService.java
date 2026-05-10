@@ -21,6 +21,7 @@ public class VendaService {
 
     private final VendaRepository vendaRepository;
     private final MembroRepository membroRepository;
+    private final EmailService emailService;
 
     // Percentual de repasse ao produtor — 70%
     private static final BigDecimal PERCENTUAL_REPASSE = new BigDecimal("0.70");
@@ -64,16 +65,38 @@ public class VendaService {
                 .statusRepasse(Venda.StatusRepasse.PENDENTE)  // sempre começa pendente
                 .build();
 
-        return VendaResponse.from(vendaRepository.save(venda));
+        VendaResponse response = VendaResponse.from(vendaRepository.save(venda));
+
+        // Notifica o produtor sobre a nova venda em background
+        if (membro.getEmail() != null) {
+            emailService.enviarNotificacaoVenda(
+                    membro.getEmail(), membro.getNome(),
+                    request.getProdutoNome(), request.getQuantidade(), repasse
+            );
+        }
+
+        return response;
     }
 
-    // Só atualiza o status do repasse (PENDENTE ↔ PAGO)
     public VendaResponse atualizarStatus(Long id, Venda.StatusRepasse novoStatus) {
         Venda venda = vendaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Venda não encontrada: " + id));
 
         venda.setStatusRepasse(novoStatus);
-        return VendaResponse.from(vendaRepository.save(venda));
+        VendaResponse response = VendaResponse.from(vendaRepository.save(venda));
+
+        // Notifica o produtor quando o repasse é marcado como PAGO
+        if (novoStatus == Venda.StatusRepasse.PAGO
+                && venda.getMembro().getEmail() != null) {
+            emailService.enviarConfirmacaoRepasse(
+                    venda.getMembro().getEmail(),
+                    venda.getMembro().getNome(),
+                    venda.getProdutoNome(),
+                    venda.getRepasse()
+            );
+        }
+
+        return response;
     }
 
     // Resumo financeiro de todos os membros ativos

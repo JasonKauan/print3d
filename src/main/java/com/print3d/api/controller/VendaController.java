@@ -1,9 +1,10 @@
 package com.print3d.api.controller;
 
 import com.print3d.api.dto.request.VendaRequest;
-import com.print3d.api.dto.response.ResumoFinanceiroResponse;
 import com.print3d.api.dto.response.VendaResponse;
+import com.print3d.api.model.Membro;
 import com.print3d.api.model.Venda;
+import com.print3d.api.repository.MembroRepository;
 import com.print3d.api.service.VendaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -20,17 +22,24 @@ import java.util.Map;
 public class VendaController {
 
     private final VendaService vendaService;
+    private final MembroRepository membroRepository;
 
-    // GET /api/v1/vendas              → lista todas
-    // GET /api/v1/vendas?membro_id=1  → filtra por membro
+    // ADMIN vê tudo ou filtra por membro_id
+    // MEMBRO só vê as próprias vendas
     @GetMapping
     public ResponseEntity<List<VendaResponse>> listar(
-            @RequestParam(name = "membro_id", required = false) Long membroId) {
+            @RequestParam(name = "membro_id", required = false) Long membroId,
+            Principal principal) {
 
-        if (membroId != null) {
-            return ResponseEntity.ok(vendaService.listarPorMembro(membroId));
+        Membro requisitante = membroRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("Membro não encontrado"));
+
+        if (requisitante.getRole() == Membro.Role.ADMIN) {
+            if (membroId != null) return ResponseEntity.ok(vendaService.listarPorMembro(membroId));
+            return ResponseEntity.ok(vendaService.listarTodas());
         }
-        return ResponseEntity.ok(vendaService.listarTodas());
+
+        return ResponseEntity.ok(vendaService.listarPorMembro(requisitante.getId()));
     }
 
     @GetMapping("/{id}")
@@ -38,25 +47,31 @@ public class VendaController {
         return ResponseEntity.ok(vendaService.buscarPorId(id));
     }
 
-    // GET /api/v1/vendas/resumo              → resumo de todos os membros
-    // GET /api/v1/vendas/resumo?membro_id=1  → resumo de um membro específico
+    // ADMIN vê resumo geral ou de um membro específico
+    // MEMBRO vê só o próprio resumo
     @GetMapping("/resumo")
     public ResponseEntity<?> resumo(
-            @RequestParam(name = "membro_id", required = false) Long membroId) {
+            @RequestParam(name = "membro_id", required = false) Long membroId,
+            Principal principal) {
 
-        if (membroId != null) {
-            return ResponseEntity.ok(vendaService.resumoPorMembro(membroId));
+        Membro requisitante = membroRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("Membro não encontrado"));
+
+        if (requisitante.getRole() == Membro.Role.ADMIN) {
+            if (membroId != null) return ResponseEntity.ok(vendaService.resumoPorMembro(membroId));
+            return ResponseEntity.ok(vendaService.resumoGeral());
         }
-        return ResponseEntity.ok(vendaService.resumoGeral());
+
+        return ResponseEntity.ok(vendaService.resumoPorMembro(requisitante.getId()));
     }
 
+    // Só ADMIN registra venda
     @PostMapping
     public ResponseEntity<VendaResponse> criar(@Valid @RequestBody VendaRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(vendaService.criar(request));
     }
 
-    // PATCH /api/v1/vendas/{id}/status
-    // Body: { "status": "PAGO" } ou { "status": "PENDENTE" }
+    // Só ADMIN altera status do repasse
     @PatchMapping("/{id}/status")
     public ResponseEntity<VendaResponse> atualizarStatus(
             @PathVariable Long id,
