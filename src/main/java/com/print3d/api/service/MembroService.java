@@ -43,11 +43,15 @@ public class MembroService {
             throw new RuntimeException("Email já cadastrado: " + request.getEmail());
         }
 
+        // Senha é obrigatória na criação — membro precisa conseguir fazer login
+        if (request.getSenha() == null || request.getSenha().isBlank()) {
+            throw new RuntimeException("Senha é obrigatória para criar um membro.");
+        }
+
         Membro membro = Membro.builder()
                 .nome(request.getNome())
                 .email(request.getEmail())
-                // Aplica BCrypt antes de salvar — NUNCA salva senha em texto puro
-                .senha(request.getSenha() != null ? passwordEncoder.encode(request.getSenha()) : null)
+                .senha(passwordEncoder.encode(request.getSenha()))
                 .role(request.getRole() != null ? request.getRole() : Membro.Role.MEMBRO)
                 .status(request.getStatus() != null ? request.getStatus() : Membro.Status.ATIVO)
                 .dataEntrada(request.getDataEntrada())
