@@ -12,6 +12,7 @@ public class MembroResponse {
     private Long id;
     private String nome;
     private String email;
+    private String fotoUrl;
     private Membro.Role role;
     private Membro.Status status;
     private LocalDate dataEntrada;
@@ -24,6 +25,7 @@ public class MembroResponse {
                 .id(m.getId())
                 .nome(m.getNome())
                 .email(m.getEmail())
+                .fotoUrl(m.getFotoUrl())
                 .role(m.getRole())
                 .status(m.getStatus())
                 .dataEntrada(m.getDataEntrada())

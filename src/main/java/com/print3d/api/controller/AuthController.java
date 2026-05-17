@@ -5,6 +5,7 @@ import com.print3d.api.dto.response.AuthResponse;
 import com.print3d.api.model.Membro;
 import com.print3d.api.repository.MembroRepository;
 import com.print3d.api.security.JwtUtil;
+import com.print3d.api.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,12 +27,11 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final MembroRepository membroRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordResetService passwordResetService;
 
     // POST /api/v1/auth/login
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-
-        // Delega a autenticação ao Spring Security (verifica email + senha BCrypt)
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getSenha())
         );
@@ -49,12 +49,9 @@ public class AuthController {
                 .build());
     }
 
-    // POST /api/v1/auth/setup
-    // Cria o primeiro admin do sistema — bloqueado automaticamente após o primeiro uso
+    // POST /api/v1/auth/setup — cria o primeiro admin, bloqueado após isso
     @PostMapping("/setup")
     public ResponseEntity<?> setup(@RequestBody Map<String, String> body) {
-
-        // Se já existe qualquer admin no banco, bloqueia a rota
         boolean adminExiste = membroRepository.findAll()
                 .stream()
                 .anyMatch(m -> m.getRole() == Membro.Role.ADMIN);
@@ -91,5 +88,49 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("mensagem", "Administrador criado com sucesso! Faça login."));
+    }
+
+    // POST /api/v1/auth/esqueceu-senha
+    // Sempre retorna 200 — não revela se o email existe (evita enumeração de usuários)
+    @PostMapping("/esqueceu-senha")
+    public ResponseEntity<?> esqueceuSenha(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "Email é obrigatório."));
+        }
+        // Mesmo que o email não exista, retorna 200 por segurança
+        passwordResetService.solicitarRecuperacao(email);
+        return ResponseEntity.ok(Map.of(
+                "mensagem", "Se esse email estiver cadastrado, você receberá um link em breve."
+        ));
+    }
+
+    // GET /api/v1/auth/validar-token?token=xxx — frontend usa para verificar se o token é válido
+    @GetMapping("/validar-token")
+    public ResponseEntity<?> validarToken(@RequestParam String token) {
+        try {
+            String email = passwordResetService.validarToken(token);
+            return ResponseEntity.ok(Map.of("email", email, "valido", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage(), "valido", false));
+        }
+    }
+
+    // POST /api/v1/auth/resetar-senha
+    @PostMapping("/resetar-senha")
+    public ResponseEntity<?> resetarSenha(@RequestBody Map<String, String> body) {
+        String token     = body.get("token");
+        String novaSenha = body.get("novaSenha");
+
+        if (token == null || novaSenha == null) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "Token e nova senha são obrigatórios."));
+        }
+
+        try {
+            passwordResetService.redefinirSenha(token, novaSenha);
+            return ResponseEntity.ok(Map.of("mensagem", "Senha redefinida com sucesso! Faça login."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
     }
 }

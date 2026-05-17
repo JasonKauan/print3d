@@ -9,8 +9,6 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -18,8 +16,44 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${resend.from}")
+    @Value("${spring.mail.username}")
     private String from;
+
+    // Email de recuperação de senha — enviado com link de reset
+    @Async
+    public void enviarRecuperacaoSenha(String destinatario, String nome, String linkReset) {
+        String assunto = "Recuperação de senha — Print3D";
+        String corpo = """
+            <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+              <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
+                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+              </div>
+              <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
+                <h3 style="color:#1e2333">Recuperação de senha</h3>
+                <p style="color:#555">Olá, <strong>%s</strong>!</p>
+                <p style="color:#555">Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova senha:</p>
+                <div style="text-align:center;margin:24px 0">
+                  <a href="%s"
+                     style="background:#4f7cff;color:#fff;padding:12px 28px;border-radius:8px;
+                            text-decoration:none;font-weight:bold;font-size:15px;display:inline-block">
+                    Redefinir minha senha
+                  </a>
+                </div>
+                <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin:16px 0">
+                  <p style="margin:0;color:#856404;font-size:13px">
+                    ⚠️ Este link expira em <strong>1 hora</strong>.
+                    Se você não solicitou a recuperação, ignore este email.
+                  </p>
+                </div>
+                <p style="color:#aaa;font-size:12px;margin-top:20px">
+                  Por segurança, nunca compartilhe este link com ninguém.<br>
+                  Print3D — Sistema de Gestão de Impressão 3D
+                </p>
+              </div>
+            </div>
+            """.formatted(nome, linkReset);
+        enviar(destinatario, assunto, corpo);
+    }
 
     // Boas-vindas ao novo membro
     @Async
@@ -47,7 +81,7 @@ public class EmailService {
     // Notificação de nova venda para o produtor
     @Async
     public void enviarNotificacaoVenda(String destinatario, String nome,
-                                       String produto, Integer qtd, BigDecimal repasse) {
+                                       String produto, Integer qtd, java.math.BigDecimal repasse) {
         String assunto = "Nova venda registrada — " + produto;
         String corpo = """
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
@@ -73,7 +107,7 @@ public class EmailService {
     // Confirmação de repasse pago
     @Async
     public void enviarConfirmacaoRepasse(String destinatario, String nome,
-                                         String produto, BigDecimal valor) {
+                                         String produto, java.math.BigDecimal valor) {
         String assunto = "Repasse realizado — " + produto + " ✅";
         String corpo = """
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
@@ -98,16 +132,16 @@ public class EmailService {
     // Método base — envia o email de fato
     private void enviar(String destinatario, String assunto, String corpo) {
         try {
+            log.info("Enviando email para: {}", destinatario);
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(from);
+            helper.setFrom("Print3D <" + from + ">");
             helper.setTo(destinatario);
             helper.setSubject(assunto);
-            helper.setText(corpo, true); // true = HTML
+            helper.setText(corpo, true);
             mailSender.send(message);
-            log.info("Email enviado para {} — {}", destinatario, assunto);
+            log.info("Email enviado com sucesso para: {}", destinatario);
         } catch (Exception e) {
-            // Não deixa falha de email quebrar a operação principal
             log.error("Erro ao enviar email para {}: {}", destinatario, e.getMessage());
         }
     }
