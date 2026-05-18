@@ -2,6 +2,7 @@ package com.print3d.api.config;
 
 import com.print3d.api.security.JwtFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -32,12 +33,19 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final UserDetailsService userDetailsService;
 
+    // Lê a URL do frontend das variáveis de ambiente
+    // Em produção: https://print3d-lyart.vercel.app
+    // Em desenvolvimento: http://localhost:5173
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
+
                         // Rotas públicas
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/produtos/**").permitAll()
@@ -53,7 +61,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,   "/api/v1/membros").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT,    "/api/v1/membros/{id}").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/membros/{id}").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/vendas/resumo").authenticated()
 
                         // Todo o resto exige autenticação
                         .anyRequest().authenticated()
@@ -86,10 +93,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("https://print3d-lyart.vercel.app","http://localhost:5173", "http://localhost:3000"));
+
+        // Aceita requisições do frontend local e do Vercel em produção
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                frontendUrl
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
