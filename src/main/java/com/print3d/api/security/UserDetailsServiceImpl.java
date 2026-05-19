@@ -10,10 +10,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
-// Implementação do contrato do Spring Security para carregar usuários
-// O Spring chama loadUserByUsername() automaticamente durante a autenticação
 @Service
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -22,16 +21,32 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-
-        // Busca o membro pelo email — lança exceção se não encontrar
         Membro membro = membroRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Membro não encontrado: " + email));
 
-        // Converte o Role do Membro para o formato que o Spring Security entende
-        // "ROLE_" é prefixo obrigatório para o Spring reconhecer como role
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + membro.getRole().name());
+        // Bloqueia login de membro inativo
+        if (membro.getStatus() == Membro.Status.INATIVO) {
+            throw new UsernameNotFoundException("Conta inativa. Entre em contato com o administrador.");
+        }
 
-        // Retorna o UserDetails com email, senha hash e permissões
-        return new User(membro.getEmail(), membro.getSenha(), List.of(authority));
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+
+        // DEV tem todas as permissões: ROLE_DEV + ROLE_ADMIN + ROLE_MEMBRO
+        // ADMIN tem: ROLE_ADMIN + ROLE_MEMBRO
+        // MEMBRO tem: ROLE_MEMBRO
+        switch (membro.getRole()) {
+            case DEV -> {
+                authorities.add(new SimpleGrantedAuthority("ROLE_DEV"));
+                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                authorities.add(new SimpleGrantedAuthority("ROLE_MEMBRO"));
+            }
+            case ADMIN -> {
+                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                authorities.add(new SimpleGrantedAuthority("ROLE_MEMBRO"));
+            }
+            case MEMBRO -> authorities.add(new SimpleGrantedAuthority("ROLE_MEMBRO"));
+        }
+
+        return new User(membro.getEmail(), membro.getSenha(), authorities);
     }
 }
