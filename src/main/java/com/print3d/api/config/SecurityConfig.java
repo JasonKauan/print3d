@@ -10,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,15 +28,13 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final UserDetailsService userDetailsService;
 
-    // Lê a URL do frontend das variáveis de ambiente
-    // Em produção: https://print3d-lyart.vercel.app
-    // Em desenvolvimento: http://localhost:5173
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
@@ -45,24 +44,16 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-
-                        // Rotas públicas
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/produtos/**").permitAll()
-
-                        // Rotas do próprio membro — ANTES das regras com {id}
                         .requestMatchers("/api/v1/membros/me").authenticated()
                         .requestMatchers("/api/v1/membros/minha-senha").authenticated()
                         .requestMatchers("/api/v1/membros/minha-foto").authenticated()
-
-                        // Rotas só para ADMIN
-                        .requestMatchers(HttpMethod.GET,    "/api/v1/membros").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET,    "/api/v1/membros/{id}").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST,   "/api/v1/membros").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT,    "/api/v1/membros/{id}").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/membros/{id}").hasRole("ADMIN")
-
-                        // Todo o resto exige autenticação
+                        .requestMatchers(HttpMethod.GET,    "/api/v1/membros").hasAnyRole("ADMIN", "DEV")
+                        .requestMatchers(HttpMethod.GET,    "/api/v1/membros/{id}").hasAnyRole("ADMIN", "DEV")
+                        .requestMatchers(HttpMethod.POST,   "/api/v1/membros").hasAnyRole("ADMIN", "DEV")
+                        .requestMatchers(HttpMethod.PUT,    "/api/v1/membros/{id}").hasAnyRole("ADMIN", "DEV")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/membros/{id}").hasAnyRole("ADMIN", "DEV")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -93,8 +84,6 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
-        // Aceita requisições do frontend local e do Vercel em produção
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://localhost:3000",
@@ -103,7 +92,6 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

@@ -25,8 +25,9 @@ public class MembroController {
 
     private final MembroService membroService;
 
+    // ADMIN e DEV podem listar membros
     @GetMapping
-
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
     public ResponseEntity<List<MembroResponse>> listar(
             @RequestParam(required = false) Membro.Status status) {
         if (status != null) return ResponseEntity.ok(membroService.listarPorStatus(status));
@@ -34,18 +35,26 @@ public class MembroController {
     }
 
     @GetMapping("/{id}")
-
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
     public ResponseEntity<MembroResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(membroService.buscarPorId(id));
     }
 
-    @PostMapping
+    // Qualquer membro autenticado vê os próprios dados
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<MembroResponse> me(Principal principal) {
+        return ResponseEntity.ok(membroService.buscarPorEmail(principal.getName()));
+    }
 
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
     public ResponseEntity<MembroResponse> criar(@Valid @RequestBody MembroRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(membroService.criar(request));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
     public ResponseEntity<MembroResponse> atualizar(@PathVariable Long id,
                                                     @Valid @RequestBody MembroRequest request,
                                                     Principal principal) {
@@ -53,14 +62,15 @@ public class MembroController {
     }
 
     @DeleteMapping("/{id}")
-
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
     public ResponseEntity<Void> deletar(@PathVariable Long id, Principal principal) {
         membroService.deletar(id, principal.getName());
         return ResponseEntity.noContent().build();
     }
 
-    // PATCH /api/v1/membros/minha-senha — qualquer membro autenticado troca a própria senha
+    // Qualquer membro troca a própria senha
     @PatchMapping("/minha-senha")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> trocarSenha(@RequestBody Map<String, String> body,
                                          Principal principal) {
         membroService.trocarSenha(
@@ -71,16 +81,11 @@ public class MembroController {
         return ResponseEntity.ok(Map.of("mensagem", "Senha atualizada com sucesso!"));
     }
 
-    // PATCH /api/v1/membros/minha-foto — qualquer membro autenticado atualiza a própria foto
+    // Qualquer membro atualiza a própria foto
     @PatchMapping(value = "/minha-foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MembroResponse> atualizarFoto(@RequestParam MultipartFile foto,
                                                         Principal principal) throws IOException {
         return ResponseEntity.ok(membroService.atualizarFoto(principal.getName(), foto));
-    }
-
-    // GET /api/v1/membros/me — retorna os dados do próprio membro autenticado
-    @GetMapping("/me")
-    public ResponseEntity<MembroResponse> me(Principal principal) {
-        return ResponseEntity.ok(membroService.buscarPorEmail(principal.getName()));
     }
 }
