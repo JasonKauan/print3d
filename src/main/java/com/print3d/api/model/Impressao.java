@@ -16,6 +16,10 @@ public class Impressao {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "impressora_id")
+    private Impressora impressora;
+
     // Quem fez a impressão — FK para membros
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "membro_id", nullable = false)
