@@ -3,6 +3,7 @@ package com.print3d.api.dto.response;
 import com.print3d.api.model.Impressao;
 import lombok.Builder;
 import lombok.Data;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -18,6 +19,16 @@ public class ImpressaoResponse {
     private String observacao;
     private LocalDateTime criadoEm;
 
+    // Impressora
+    private Long impressoraId;
+    private String impressoraNome;
+
+    // Filamento
+    private Long filamentoId;
+    private String filamentoNome;
+    private BigDecimal gramasUsadas;
+    private BigDecimal custoFilamento;
+
     public static ImpressaoResponse from(Impressao i) {
         return ImpressaoResponse.builder()
                 .id(i.getId())
@@ -29,6 +40,12 @@ public class ImpressaoResponse {
                 .dataImpressao(i.getDataImpressao())
                 .observacao(i.getObservacao())
                 .criadoEm(i.getCriadoEm())
+                .impressoraId(i.getImpressora() != null ? i.getImpressora().getId() : null)
+                .impressoraNome(i.getImpressora() != null ? i.getImpressora().getNome() : null)
+                .filamentoId(i.getFilamento() != null ? i.getFilamento().getId() : null)
+                .filamentoNome(i.getFilamento() != null ? i.getFilamento().getNome() : null)
+                .gramasUsadas(i.getGramasUsadas())
+                .custoFilamento(i.getCustoFilamento())
                 .build();
     }
 }
