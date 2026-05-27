@@ -168,7 +168,7 @@ public class ImpressoraService {
         impressora.setUsoIniciadoEm(null);
         impressora.setProdutoEmImpressao(null);
         impressora.setQuantidadeEmImpressao(null);
-        impressora.setFilamentoAtualId(null);
+        impressora.setFilamentoAtual(null);
 
         return ImpressoraResponse.from(impressoraRepository.save(impressora));
     }
@@ -184,7 +184,7 @@ public class ImpressoraService {
             impressora.setUsoIniciadoEm(null);
             impressora.setProdutoEmImpressao(null);
             impressora.setQuantidadeEmImpressao(null);
-            impressora.setFilamentoAtual(null);
+            impressora.setFilamentoAtualId(null);
         }
 
         return ImpressoraResponse.from(impressoraRepository.save(impressora));
