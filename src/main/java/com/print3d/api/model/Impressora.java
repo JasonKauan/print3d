@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
-@Data
 @Entity
 @Table(name = "impressoras")
 @Getter @Setter
@@ -19,7 +18,6 @@ public class Impressora {
     @Column(nullable = false, length = 100)
     private String nome;
 
-
     @Column(length = 150)
     private String modelo;
 
@@ -28,23 +26,20 @@ public class Impressora {
     @Builder.Default
     private Status status = Status.LIVRE;
 
-    // Quem está usando atualmente — null quando LIVRE ou MANUTENCAO
+    // Quem está usando atualmente
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "membro_atual_id")
     private Membro membroAtual;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "filamento_atual_id")
-    private Long FilamentoAtualId;
+    // Qual filamento está sendo usado — guardamos só o ID pra não criar dependência circular
+    @Column(name = "filamento_atual_id")
+    private Long filamentoAtualId;
 
-    // Quando o uso atual começou
     private LocalDateTime usoIniciadoEm;
 
-    // Produto sendo impresso no momento
     @Column(length = 200)
     private String produtoEmImpressao;
 
-    // Quantidade sendo impressa no momento
     private Integer quantidadeEmImpressao;
 
     @Column(columnDefinition = "TEXT")
