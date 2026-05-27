@@ -33,6 +33,10 @@ public class Impressora {
     @JoinColumn(name = "membro_atual_id")
     private Membro membroAtual;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "filamento_atual_id")
+    private String FilamentoAtual;
+
     // Quando o uso atual começou
     private LocalDateTime usoIniciadoEm;
 

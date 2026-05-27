@@ -3,6 +3,7 @@ package com.print3d.api.dto.request;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import java.math.BigDecimal;
 
 @Data
 public class UsarImpressoraRequest {
@@ -12,4 +13,10 @@ public class UsarImpressoraRequest {
 
     @Min(value = 1, message = "Quantidade mínima é 1")
     private Integer quantidade = 1;
+
+    // Filamento escolhido — opcional, mas recomendado
+    private Long filamentoId;
+
+    // Gramas estimadas que vai usar — para controle de estoque
+    private BigDecimal gramasEstimadas;
 }
