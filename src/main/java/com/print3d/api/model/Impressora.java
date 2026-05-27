@@ -35,7 +35,7 @@ public class Impressora {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "filamento_atual_id")
-    private Long FilamentoAtualID;
+    private Long FilamentoAtualId;
 
     // Quando o uso atual começou
     private LocalDateTime usoIniciadoEm;
