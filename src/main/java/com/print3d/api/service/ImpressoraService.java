@@ -26,6 +26,7 @@ public class ImpressoraService {
     private final ImpressaoRepository impressaoRepository;
     private final FilamentoRepository filamentoRepository;
     private final NotificacaoService notificacaoService;
+    private final MovimentacaoEstoqueService movimentacaoService;
 
     public List<ImpressoraResponse> listarTodas() {
         return impressoraRepository.findAllByOrderByNomeAsc()
@@ -132,20 +133,22 @@ public class ImpressoraService {
 
         if (filamento != null && request.getGramasUsadas() != null
                 && request.getGramasUsadas().compareTo(BigDecimal.ZERO) > 0) {
-            // Custo = gramas usadas × custo por grama
             custoFilamento = request.getGramasUsadas()
                     .multiply(filamento.getCustoPorGrama())
                     .setScale(2, RoundingMode.HALF_UP);
 
-            // Desconta do estoque do filamento
-            BigDecimal novoDisponivel = filamento.getPesoDisponivelGramas()
-                    .subtract(request.getGramasUsadas());
+            BigDecimal estoqueAntes = filamento.getPesoDisponivelGramas();
+            BigDecimal novoDisponivel = estoqueAntes.subtract(request.getGramasUsadas());
             if (novoDisponivel.compareTo(BigDecimal.ZERO) < 0) novoDisponivel = BigDecimal.ZERO;
             filamento.setPesoDisponivelGramas(novoDisponivel);
             if (novoDisponivel.compareTo(BigDecimal.ZERO) == 0) {
                 filamento.setStatus(Filamento.Status.ESGOTADO);
             }
             filamentoRepository.save(filamento);
+
+            // Registra consumo no histórico de estoque
+            movimentacaoService.registrarConsumoFilamento(
+                    filamento, request.getGramasUsadas(), estoqueAntes, requisitante);
         }
 
         // Cria o registro de impressão automaticamente

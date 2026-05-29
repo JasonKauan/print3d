@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class FilamentoService {
 
     private final FilamentoRepository filamentoRepository;
+    private final MovimentacaoEstoqueService movimentacaoService;
 
     public List<FilamentoResponse> listarTodos() {
         return filamentoRepository.findAllByOrderByNomeAsc()
@@ -34,7 +35,6 @@ public class FilamentoService {
     }
 
     public FilamentoResponse criar(FilamentoRequest request) {
-        // Custo por grama = preço pago / peso total
         BigDecimal custoPorGrama = request.getPrecoPago()
                 .divide(request.getPesoTotalGramas(), 4, RoundingMode.HALF_UP);
 
@@ -44,14 +44,19 @@ public class FilamentoService {
                 .cor(request.getCor())
                 .tipo(request.getTipo())
                 .pesoTotalGramas(request.getPesoTotalGramas())
-                .pesoDisponivelGramas(request.getPesoTotalGramas()) // começa cheio
+                .pesoDisponivelGramas(request.getPesoTotalGramas())
                 .precoPago(request.getPrecoPago())
                 .custoPorGrama(custoPorGrama)
                 .dataCompra(request.getDataCompra())
                 .status(Filamento.Status.DISPONIVEL)
                 .build();
 
-        return FilamentoResponse.from(filamentoRepository.save(filamento));
+        Filamento salvo = filamentoRepository.save(filamento);
+
+        // Registra entrada do rolo no histórico de estoque
+        movimentacaoService.registrarEntradaFilamento(salvo, null);
+
+        return FilamentoResponse.from(salvo);
     }
 
     public FilamentoResponse atualizar(Long id, FilamentoRequest request) {
@@ -73,7 +78,6 @@ public class FilamentoService {
         return FilamentoResponse.from(filamentoRepository.save(filamento));
     }
 
-    // Desconta gramas usadas do rolo — chamado ao finalizar uma impressão
     public void descontarGramas(Filamento filamento, BigDecimal gramas) {
         BigDecimal novoDisponivel = filamento.getPesoDisponivelGramas().subtract(gramas);
         if (novoDisponivel.compareTo(BigDecimal.ZERO) < 0) novoDisponivel = BigDecimal.ZERO;

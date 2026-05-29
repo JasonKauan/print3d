@@ -20,7 +20,8 @@ import java.util.stream.Collectors;
 public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
-    private final Cloudinary cloudinary;  // injetado via CloudinaryConfig
+    private final Cloudinary cloudinary;
+    private final MovimentacaoEstoqueService movimentacaoService;
 
     public List<ProdutoResponse> listarTodos() {
         return produtoRepository.findAll()
@@ -34,12 +35,9 @@ public class ProdutoService {
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado: " + id)));
     }
 
-    // Cria produto com upload de foto obrigatório
     public ProdutoResponse criar(String nome, String descricao,
                                  BigDecimal preco, Integer estoque,
                                  MultipartFile foto) throws IOException {
-
-        // Faz upload da foto para o Cloudinary e pega a URL pública
         String fotoUrl = uploadFoto(foto);
 
         Produto produto = Produto.builder()
@@ -50,14 +48,17 @@ public class ProdutoService {
                 .fotoUrl(fotoUrl)
                 .build();
 
-        return ProdutoResponse.from(produtoRepository.save(produto));
+        Produto salvo = produtoRepository.save(produto);
+
+        // Registra entrada inicial no histórico de estoque
+        movimentacaoService.registrarEntradaProduto(salvo, null);
+
+        return ProdutoResponse.from(salvo);
     }
 
-    // Atualiza produto — foto é opcional no update
     public ProdutoResponse atualizar(Long id, String nome, String descricao,
                                      BigDecimal preco, Integer estoque,
                                      MultipartFile foto) throws IOException {
-
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado: " + id));
 
@@ -66,7 +67,6 @@ public class ProdutoService {
         if (preco != null)     produto.setPreco(preco);
         if (estoque != null)   produto.setEstoque(estoque);
 
-        // Só atualiza a foto se uma nova foi enviada
         if (foto != null && !foto.isEmpty()) {
             produto.setFotoUrl(uploadFoto(foto));
         }
@@ -81,16 +81,11 @@ public class ProdutoService {
         produtoRepository.deleteById(id);
     }
 
-    // Faz o upload do arquivo para o Cloudinary e retorna a URL pública
     private String uploadFoto(MultipartFile foto) throws IOException {
-        // Envia o array de bytes do arquivo para o Cloudinary
-        // "folder" organiza as fotos em uma pasta dentro da sua conta
         Map<?, ?> resultado = cloudinary.uploader().upload(
                 foto.getBytes(),
                 ObjectUtils.asMap("folder", "print3d/produtos")
         );
-
-        // "secure_url" é a URL HTTPS da imagem já disponível publicamente
         return (String) resultado.get("secure_url");
     }
 }

@@ -4,8 +4,10 @@ import com.print3d.api.dto.request.VendaRequest;
 import com.print3d.api.dto.response.ResumoFinanceiroResponse;
 import com.print3d.api.dto.response.VendaResponse;
 import com.print3d.api.model.Membro;
+import com.print3d.api.model.Produto;
 import com.print3d.api.model.Venda;
 import com.print3d.api.repository.MembroRepository;
+import com.print3d.api.repository.ProdutoRepository;
 import com.print3d.api.repository.VendaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,9 +23,11 @@ public class VendaService {
 
     private final VendaRepository vendaRepository;
     private final MembroRepository membroRepository;
+    private final ProdutoRepository produtoRepository;
     private final EmailService emailService;
     private final ConfiguracaoService configuracaoService;
     private final NotificacaoService notificacaoService;
+    private final MovimentacaoEstoqueService movimentacaoService;
 
     public List<VendaResponse> listarTodas() {
         return vendaRepository.findAll()
@@ -48,8 +52,6 @@ public class VendaService {
         Membro membro = membroRepository.findById(request.getMembroId())
                 .orElseThrow(() -> new RuntimeException("Membro não encontrado: " + request.getMembroId()));
 
-        // Busca o percentual de repasse do membro — usa override se existir, senão usa o global
-        // Ex: global = 70%, membro específico pode ter 65% ou 75%
         BigDecimal percentual = configuracaoService
                 .getPercentualRepasseMembro(membro.getId())
                 .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
@@ -77,9 +79,18 @@ public class VendaService {
             );
         }
 
-        // Notificação in-app
         notificacaoService.novaVenda(membro, request.getProdutoNome(),
                 "R$ " + repasse.toPlainString());
+
+        // Registra saída de estoque se o produto existir no catálogo
+        produtoRepository.findByNome(request.getProdutoNome()).ifPresent(produto -> {
+            int qtd = request.getQuantidade() != null ? request.getQuantidade() : 1;
+            // Desconta do estoque
+            produto.setEstoque(Math.max(0, produto.getEstoque() - qtd));
+            produtoRepository.save(produto);
+            // Registra movimentação
+            movimentacaoService.registrarSaidaVenda(produto, qtd, membro);
+        });
 
         return response;
     }
@@ -99,7 +110,6 @@ public class VendaService {
                     venda.getProdutoNome(),
                     venda.getRepasse()
             );
-            // Notificação in-app de repasse pago
             notificacaoService.repassePago(venda.getMembro(), venda.getProdutoNome(),
                     "R$ " + venda.getRepasse().toPlainString());
         }
@@ -107,7 +117,6 @@ public class VendaService {
         return response;
     }
 
-    // Resumo financeiro de todos os membros ativos
     public List<ResumoFinanceiroResponse> resumoGeral() {
         return membroRepository.findByStatus(Membro.Status.ATIVO)
                 .stream()
@@ -115,18 +124,15 @@ public class VendaService {
                 .collect(Collectors.toList());
     }
 
-    // Resumo financeiro de um membro específico
     public ResumoFinanceiroResponse resumoPorMembro(Long membroId) {
         Membro membro = membroRepository.findById(membroId)
                 .orElseThrow(() -> new RuntimeException("Membro não encontrado: " + membroId));
         return calcularResumo(membro);
     }
 
-    // Calcula o resumo usando o percentual personalizado de cada membro
     private ResumoFinanceiroResponse calcularResumo(Membro membro) {
         BigDecimal totalVendas = vendaRepository.somarVendasPorMembro(membro.getId());
 
-        // Usa o repasse individual do membro — global se não tiver override
         BigDecimal percentual = configuracaoService
                 .getPercentualRepasseMembro(membro.getId())
                 .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
