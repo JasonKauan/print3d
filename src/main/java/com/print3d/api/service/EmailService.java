@@ -1,5 +1,6 @@
 package com.print3d.api.service;
 
+import com.print3d.api.model.Configuracao;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,18 +16,24 @@ import org.springframework.stereotype.Service;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private final ConfiguracaoService configuracaoService;
 
     @Value("${spring.mail.username}")
     private String from;
 
+    private String nomeEntidade() {
+        return configuracaoService.getString(Configuracao.NOME_ENTIDADE, "Print3D");
+    }
+
     // Email de recuperação de senha — enviado com link de reset
     @Async
     public void enviarRecuperacaoSenha(String destinatario, String nome, String linkReset) {
-        String assunto = "Recuperação de senha — Print3D";
+        String ne = nomeEntidade();
+        String assunto = "Recuperação de senha — " + ne;
         String corpo = """
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
               <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
-                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <h2 style="color:#4f7cff;margin:0">◈ %s</h2>
               </div>
               <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
                 <h3 style="color:#1e2333">Recuperação de senha</h3>
@@ -47,34 +54,35 @@ public class EmailService {
                 </div>
                 <p style="color:#aaa;font-size:12px;margin-top:20px">
                   Por segurança, nunca compartilhe este link com ninguém.<br>
-                  Print3D — Sistema de Gestão de Impressão 3D
+                  %s — Sistema de Gestão
                 </p>
               </div>
             </div>
-            """.formatted(nome, linkReset);
+            """.formatted(ne, nome, linkReset, ne);
         enviar(destinatario, assunto, corpo);
     }
 
     // Boas-vindas ao novo membro
     @Async
     public void enviarBoasVindas(String destinatario, String nome) {
-        String assunto = "Bem-vindo ao Print3D! 🎉";
+        String ne = nomeEntidade();
+        String assunto = "Bem-vindo ao " + ne + "! 🎉";
         String corpo = """
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
               <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
-                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <h2 style="color:#4f7cff;margin:0">◈ %s</h2>
               </div>
               <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
                 <h3 style="color:#1e2333">Olá, %s! 👋</h3>
-                <p style="color:#555">Sua conta foi criada com sucesso no sistema Print3D.</p>
+                <p style="color:#555">Sua conta foi criada com sucesso no sistema %s.</p>
                 <p style="color:#555">Acesse o sistema com seu email e a senha definida pelo administrador.</p>
                 <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
                   <p style="margin:0;color:#888;font-size:13px">Qualquer dúvida, fale com o administrador da entidade.</p>
                 </div>
-                <p style="color:#aaa;font-size:12px">Print3D — Sistema de Gestão de Impressão 3D</p>
+                <p style="color:#aaa;font-size:12px">%s — Sistema de Gestão</p>
               </div>
             </div>
-            """.formatted(nome);
+            """.formatted(ne, nome, ne, ne);
         enviar(destinatario, assunto, corpo);
     }
 
@@ -82,11 +90,13 @@ public class EmailService {
     @Async
     public void enviarNotificacaoVenda(String destinatario, String nome,
                                        String produto, Integer qtd, java.math.BigDecimal repasse) {
+        String ne = nomeEntidade();
+        String percentualLabel = configuracaoService.getPercentualRepasse().stripTrailingZeros().toPlainString() + "%";
         String assunto = "Nova venda registrada — " + produto;
         String corpo = """
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
               <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
-                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <h2 style="color:#4f7cff;margin:0">◈ %s</h2>
               </div>
               <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
                 <h3 style="color:#1e2333">Nova venda registrada! 🛍️</h3>
@@ -94,13 +104,13 @@ public class EmailService {
                 <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
                   <p style="margin:0 0 8px;color:#333"><strong>Produto:</strong> %s</p>
                   <p style="margin:0 0 8px;color:#333"><strong>Quantidade:</strong> %d unid.</p>
-                  <p style="margin:0;font-size:18px;color:#2ecc8a"><strong>Seu repasse (70%%): R$ %.2f</strong></p>
+                  <p style="margin:0;font-size:18px;color:#2ecc8a"><strong>Seu repasse (%s): R$ %.2f</strong></p>
                 </div>
                 <p style="color:#888;font-size:13px">O repasse será realizado em breve. Acompanhe pelo sistema.</p>
-                <p style="color:#aaa;font-size:12px">Print3D — Sistema de Gestão de Impressão 3D</p>
+                <p style="color:#aaa;font-size:12px">%s — Sistema de Gestão</p>
               </div>
             </div>
-            """.formatted(nome, produto, qtd, repasse);
+            """.formatted(ne, nome, produto, qtd, percentualLabel, repasse, ne);
         enviar(destinatario, assunto, corpo);
     }
 
@@ -108,11 +118,12 @@ public class EmailService {
     @Async
     public void enviarConfirmacaoRepasse(String destinatario, String nome,
                                          String produto, java.math.BigDecimal valor) {
+        String ne = nomeEntidade();
         String assunto = "Repasse realizado — " + produto + " ✅";
         String corpo = """
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
               <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
-                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <h2 style="color:#4f7cff;margin:0">◈ %s</h2>
               </div>
               <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
                 <h3 style="color:#1e2333">Repasse confirmado! ✅</h3>
@@ -122,10 +133,10 @@ public class EmailService {
                   <p style="margin:0;font-size:20px;color:#2ecc8a"><strong>R$ %.2f</strong></p>
                 </div>
                 <p style="color:#888;font-size:13px">Acesse o sistema para ver seu extrato completo.</p>
-                <p style="color:#aaa;font-size:12px">Print3D — Sistema de Gestão de Impressão 3D</p>
+                <p style="color:#aaa;font-size:12px">%s — Sistema de Gestão</p>
               </div>
             </div>
-            """.formatted(nome, produto, valor);
+            """.formatted(ne, nome, produto, valor, ne);
         enviar(destinatario, assunto, corpo);
     }
 
@@ -134,11 +145,12 @@ public class EmailService {
     public void enviarRelatorioMensal(String destinatario, String nome, String nomeMes,
                                       long impressoes, long pecas,
                                       java.math.BigDecimal vendas, java.math.BigDecimal repasse) {
-        String assunto = "Seu resumo de " + nomeMes + " — Print3D";
+        String ne = nomeEntidade();
+        String assunto = "Seu resumo de " + nomeMes + " — " + ne;
         String corpo = """
             <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
               <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
-                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <h2 style="color:#4f7cff;margin:0">◈ %s</h2>
                 <p style="color:#888;margin:4px 0 0;font-size:13px">Relatório mensal — %s</p>
               </div>
               <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
@@ -165,10 +177,10 @@ public class EmailService {
                 </div>
 
                 <p style="color:#888;font-size:13px">Acesse o sistema para ver seu extrato detalhado.</p>
-                <p style="color:#aaa;font-size:12px;margin-top:20px">Print3D — Relatório gerado automaticamente no 1º dia do mês.</p>
+                <p style="color:#aaa;font-size:12px;margin-top:20px">%s — Relatório gerado automaticamente no 1º dia do mês.</p>
               </div>
             </div>
-            """.formatted(nomeMes, nome, nomeMes, impressoes, pecas, vendas, repasse);
+            """.formatted(ne, nomeMes, nome, nomeMes, impressoes, pecas, vendas, repasse, ne);
         enviar(destinatario, assunto, corpo);
     }
 
@@ -177,11 +189,12 @@ public class EmailService {
     public void enviarRelatorioConsolidado(String destinatario, String nome, String nomeMes,
                                            java.math.BigDecimal receitaTotal, long impressoesTotal,
                                            int membrosAtivos, java.math.BigDecimal repassePendente) {
-        String assunto = "Relatório consolidado de " + nomeMes + " — Print3D";
+        String ne = nomeEntidade();
+        String assunto = "Relatório consolidado de " + nomeMes + " — " + ne;
         String corpo = """
             <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
               <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
-                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <h2 style="color:#4f7cff;margin:0">◈ %s</h2>
                 <p style="color:#888;margin:4px 0 0;font-size:13px">Consolidado administrativo — %s</p>
               </div>
               <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
@@ -208,10 +221,10 @@ public class EmailService {
                 </div>
 
                 <p style="color:#888;font-size:13px">Acesse o Painel ADM para detalhes completos e rankings.</p>
-                <p style="color:#aaa;font-size:12px;margin-top:20px">Print3D — Relatório gerado automaticamente no 1º dia do mês.</p>
+                <p style="color:#aaa;font-size:12px;margin-top:20px">%s — Relatório gerado automaticamente no 1º dia do mês.</p>
               </div>
             </div>
-            """.formatted(nomeMes, nomeMes, nome, receitaTotal, impressoesTotal, membrosAtivos, repassePendente);
+            """.formatted(ne, nomeMes, nomeMes, nome, receitaTotal, impressoesTotal, membrosAtivos, repassePendente, ne);
         enviar(destinatario, assunto, corpo);
     }
 
@@ -221,7 +234,7 @@ public class EmailService {
             log.info("Enviando email para: {}", destinatario);
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom("Print3D <" + from + ">");
+            helper.setFrom(nomeEntidade() + " <" + from + ">");
             helper.setTo(destinatario);
             helper.setSubject(assunto);
             helper.setText(corpo, true);

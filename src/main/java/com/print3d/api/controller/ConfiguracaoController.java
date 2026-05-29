@@ -22,6 +22,14 @@ public class ConfiguracaoController {
         return ResponseEntity.ok(configuracaoService.listarTodas());
     }
 
+    // Endpoint público — retorna apenas nome da entidade (usado em páginas sem login)
+    @GetMapping("/publico")
+    public ResponseEntity<Map<String, String>> publico() {
+        return ResponseEntity.ok(Map.of(
+                "NOME_ENTIDADE", configuracaoService.getString(
+                        com.print3d.api.model.Configuracao.NOME_ENTIDADE, "Print3D")));
+    }
+
     // Só ADMIN/DEV pode alterar configs globais
     @PatchMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
