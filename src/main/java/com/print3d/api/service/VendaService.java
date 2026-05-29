@@ -22,9 +22,8 @@ public class VendaService {
     private final VendaRepository vendaRepository;
     private final MembroRepository membroRepository;
     private final EmailService emailService;
-
-    // Percentual de repasse ao produtor — 70%
-    private static final BigDecimal PERCENTUAL_REPASSE = new BigDecimal("0.70");
+    private final ConfiguracaoService configuracaoService;
+    private final NotificacaoService notificacaoService;
 
     public List<VendaResponse> listarTodas() {
         return vendaRepository.findAll()
@@ -49,10 +48,14 @@ public class VendaService {
         Membro membro = membroRepository.findById(request.getMembroId())
                 .orElseThrow(() -> new RuntimeException("Membro não encontrado: " + request.getMembroId()));
 
-        // Calcula o repasse automaticamente: 70% do valor total
-        // RoundingMode.HALF_UP = arredonda para cima no meio (padrão financeiro)
+        // Busca o percentual de repasse do membro — usa override se existir, senão usa o global
+        // Ex: global = 70%, membro específico pode ter 65% ou 75%
+        BigDecimal percentual = configuracaoService
+                .getPercentualRepasseMembro(membro.getId())
+                .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+
         BigDecimal repasse = request.getValorTotal()
-                .multiply(PERCENTUAL_REPASSE)
+                .multiply(percentual)
                 .setScale(2, RoundingMode.HALF_UP);
 
         Venda venda = Venda.builder()
@@ -60,20 +63,23 @@ public class VendaService {
                 .produtoNome(request.getProdutoNome())
                 .quantidade(request.getQuantidade())
                 .valorTotal(request.getValorTotal())
-                .repasse(repasse)             // já calculado
+                .repasse(repasse)
                 .dataVenda(request.getDataVenda())
-                .statusRepasse(Venda.StatusRepasse.PENDENTE)  // sempre começa pendente
+                .statusRepasse(Venda.StatusRepasse.PENDENTE)
                 .build();
 
         VendaResponse response = VendaResponse.from(vendaRepository.save(venda));
 
-        // Notifica o produtor sobre a nova venda em background
         if (membro.getEmail() != null) {
             emailService.enviarNotificacaoVenda(
                     membro.getEmail(), membro.getNome(),
                     request.getProdutoNome(), request.getQuantidade(), repasse
             );
         }
+
+        // Notificação in-app
+        notificacaoService.novaVenda(membro, request.getProdutoNome(),
+                "R$ " + repasse.toPlainString());
 
         return response;
     }
@@ -85,7 +91,6 @@ public class VendaService {
         venda.setStatusRepasse(novoStatus);
         VendaResponse response = VendaResponse.from(vendaRepository.save(venda));
 
-        // Notifica o produtor quando o repasse é marcado como PAGO
         if (novoStatus == Venda.StatusRepasse.PAGO
                 && venda.getMembro().getEmail() != null) {
             emailService.enviarConfirmacaoRepasse(
@@ -94,6 +99,9 @@ public class VendaService {
                     venda.getProdutoNome(),
                     venda.getRepasse()
             );
+            // Notificação in-app de repasse pago
+            notificacaoService.repassePago(venda.getMembro(), venda.getProdutoNome(),
+                    "R$ " + venda.getRepasse().toPlainString());
         }
 
         return response;
@@ -114,11 +122,17 @@ public class VendaService {
         return calcularResumo(membro);
     }
 
-    // Calcula o resumo financeiro de um membro usando as queries do repository
+    // Calcula o resumo usando o percentual personalizado de cada membro
     private ResumoFinanceiroResponse calcularResumo(Membro membro) {
-        BigDecimal totalVendas  = vendaRepository.somarVendasPorMembro(membro.getId());
-        BigDecimal totalRepasse = totalVendas.multiply(PERCENTUAL_REPASSE).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal totalPago    = vendaRepository.somarRepassePagoPorMembro(membro.getId());
+        BigDecimal totalVendas = vendaRepository.somarVendasPorMembro(membro.getId());
+
+        // Usa o repasse individual do membro — global se não tiver override
+        BigDecimal percentual = configuracaoService
+                .getPercentualRepasseMembro(membro.getId())
+                .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+
+        BigDecimal totalRepasse  = totalVendas.multiply(percentual).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalPago     = vendaRepository.somarRepassePagoPorMembro(membro.getId());
         BigDecimal totalPendente = totalRepasse.subtract(totalPago);
 
         return ResumoFinanceiroResponse.builder()

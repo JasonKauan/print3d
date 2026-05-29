@@ -25,6 +25,7 @@ public class ImpressoraService {
     private final MembroRepository membroRepository;
     private final ImpressaoRepository impressaoRepository;
     private final FilamentoRepository filamentoRepository;
+    private final NotificacaoService notificacaoService;
 
     public List<ImpressoraResponse> listarTodas() {
         return impressoraRepository.findAllByOrderByNomeAsc()
@@ -161,6 +162,27 @@ public class ImpressoraService {
                 .observacao(request.getObservacao())
                 .build();
         impressaoRepository.save(impressao);
+
+        // Notifica todos os membros ativos que a impressora foi liberada
+        Membro membroQueUsou = impressora.getMembroAtual();
+        membroRepository.findByStatus(com.print3d.api.model.Membro.Status.ATIVO)
+                .stream()
+                .filter(m -> !m.getId().equals(membroQueUsou.getId())) // não notifica quem acabou de usar
+                .forEach(m -> notificacaoService.impressoraLiberada(m, impressora.getNome()));
+
+        // Alerta de filamento baixo — menos de 100g
+        if (filamento != null
+                && filamento.getPesoDisponivelGramas().compareTo(new java.math.BigDecimal("100")) < 0
+                && filamento.getStatus() != com.print3d.api.model.Filamento.Status.ESGOTADO) {
+            // Salva nome e gramas antes do forEach para evitar LazyInitializationException
+            String nomeFilamento = filamento.getNome();
+            String gramasRestantes = filamento.getPesoDisponivelGramas().toPlainString();
+            membroRepository.findByStatus(com.print3d.api.model.Membro.Status.ATIVO)
+                    .stream()
+                    .filter(m -> m.getRole() == com.print3d.api.model.Membro.Role.ADMIN
+                            || m.getRole() == com.print3d.api.model.Membro.Role.DEV)
+                    .forEach(m -> notificacaoService.filamentoBaixo(m, nomeFilamento, gramasRestantes));
+        }
 
         // Libera a impressora
         impressora.setStatus(Impressora.Status.LIVRE);

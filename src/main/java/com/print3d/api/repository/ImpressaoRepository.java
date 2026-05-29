@@ -2,18 +2,41 @@ package com.print3d.api.repository;
 
 import com.print3d.api.model.Impressao;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public interface ImpressaoRepository extends JpaRepository<Impressao, Long> {
 
-    // Todas as impressões de um membro específico
-    List<Impressao> findByMembroId(Long membroId);
-
-    // Ordenado por data mais recente primeiro
+    // Listagem ordenada por data — usada no ImpressaoService
     List<Impressao> findAllByOrderByDataImpressaoDesc();
 
-    // Impressões de um membro ordenadas pela mais recente
+    // Listagem por membro ordenada por data — usada no ImpressaoService
     List<Impressao> findByMembroIdOrderByDataImpressaoDesc(Long membroId);
+
+    // Listagem por membro sem ordenação — usada no AdminDashboardController
+    List<Impressao> findByMembroId(Long membroId);
+
+    // Impressões por período — usada no dashboard
+    @Query("SELECT COUNT(i) FROM Impressao i WHERE i.dataImpressao BETWEEN :inicio AND :fim")
+    long contarPorPeriodo(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    // Top membros mais produtivos — ranking do painel ADM
+    @Query("""
+        SELECT new map(
+            i.membro.nome as nome,
+            i.membro.fotoUrl as fotoUrl,
+            COUNT(i) as totalImpressoes,
+            SUM(i.quantidade) as totalPecas
+        )
+        FROM Impressao i
+        GROUP BY i.membro.id, i.membro.nome, i.membro.fotoUrl
+        ORDER BY COUNT(i) DESC
+        """)
+    List<Map<String, Object>> rankingMembros();
 }
