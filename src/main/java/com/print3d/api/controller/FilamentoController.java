@@ -42,6 +42,13 @@ public class FilamentoController {
         return ResponseEntity.ok(Map.of("total", filamentoService.totalInvestido()));
     }
 
+    // Analytics de consumo e sugestão de compra — só admin/dev
+    @GetMapping("/analytics")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
+    public ResponseEntity<?> analytics() {
+        return ResponseEntity.ok(filamentoService.analytics());
+    }
+
     // Só admin/dev gerencia filamentos
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")

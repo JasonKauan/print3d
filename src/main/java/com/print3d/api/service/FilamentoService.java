@@ -4,12 +4,16 @@ import com.print3d.api.dto.request.FilamentoRequest;
 import com.print3d.api.dto.response.FilamentoResponse;
 import com.print3d.api.model.Filamento;
 import com.print3d.api.repository.FilamentoRepository;
+import com.print3d.api.repository.MovimentacaoEstoqueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -18,6 +22,7 @@ public class FilamentoService {
 
     private final FilamentoRepository filamentoRepository;
     private final MovimentacaoEstoqueService movimentacaoService;
+    private final MovimentacaoEstoqueRepository movimentacaoRepository;
 
     public List<FilamentoResponse> listarTodos() {
         return filamentoRepository.findAllByOrderByNomeAsc()
@@ -96,5 +101,36 @@ public class FilamentoService {
 
     public BigDecimal totalInvestido() {
         return filamentoRepository.totalInvestido();
+    }
+
+    // Analytics de consumo — últimos 3 meses, sugestão de compra e comparativo
+    public List<Map<String, Object>> analytics() {
+        LocalDateTime tresM = LocalDateTime.now().minusMonths(3);
+        BigDecimal meses    = new BigDecimal("3");
+
+        return filamentoRepository.findAllByOrderByNomeAsc().stream().map(f -> {
+            BigDecimal consumo3m = movimentacaoRepository.somarConsumoFilamento(f.getId(), tresM);
+            BigDecimal consumoMedio = consumo3m.divide(meses, 2, RoundingMode.HALF_UP);
+
+            BigDecimal mesesRestantes = consumoMedio.compareTo(BigDecimal.ZERO) > 0
+                    ? f.getPesoDisponivelGramas().divide(consumoMedio, 1, RoundingMode.HALF_UP)
+                    : null; // sem histórico de consumo
+
+            boolean sugerirCompra = mesesRestantes != null
+                    && mesesRestantes.compareTo(new BigDecimal("2")) <= 0;
+
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id",               f.getId());
+            map.put("nome",             f.getNome());
+            map.put("cor",              f.getCor());
+            map.put("tipo",             f.getTipo());
+            map.put("status",           f.getStatus());
+            map.put("pesoDisponivel",   f.getPesoDisponivelGramas());
+            map.put("custoPorGrama",    f.getCustoPorGrama());
+            map.put("consumoMedioMensal", consumoMedio);
+            map.put("mesesRestantes",   mesesRestantes);
+            map.put("sugerirCompra",    sugerirCompra);
+            return map;
+        }).collect(Collectors.toList());
     }
 }
