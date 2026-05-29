@@ -83,4 +83,9 @@ public class NotificacaoService {
         criar(membro, Notificacao.Tipo.REPASSE_PAGO,
                 String.format("Seu repasse de %s pela venda de \"%s\" foi pago!", valor, produto));
     }
+
+    public void vezNaFila(Membro membro, String impressora) {
+        criar(membro, Notificacao.Tipo.IMPRESSORA_LIBERADA,
+                String.format("É a sua vez! A impressora \"%s\" foi liberada — você é o próximo da fila.", impressora));
+    }
 }

@@ -27,11 +27,15 @@ public class ConfiguracaoController {
     @PreAuthorize("hasAnyRole('ADMIN', 'DEV')")
     public ResponseEntity<?> atualizar(@RequestBody Map<String, String> body) {
         body.forEach((chave, valor) -> {
-            try {
-                new BigDecimal(valor); // valida que é número
+            if (com.print3d.api.model.Configuracao.CHAVES_TEXTO.contains(chave)) {
                 configuracaoService.atualizar(chave, valor);
-            } catch (NumberFormatException e) {
-                throw new RuntimeException("Valor inválido para " + chave + ": " + valor);
+            } else {
+                try {
+                    new BigDecimal(valor); // valida que é número
+                    configuracaoService.atualizar(chave, valor);
+                } catch (NumberFormatException e) {
+                    throw new RuntimeException("Valor inválido para " + chave + ": " + valor);
+                }
             }
         });
         return ResponseEntity.ok(Map.of("mensagem", "Configurações atualizadas!"));

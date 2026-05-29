@@ -3,6 +3,7 @@ package com.print3d.api.service;
 import com.print3d.api.dto.request.FinalizarImpressoraRequest;
 import com.print3d.api.dto.request.ImpressoraRequest;
 import com.print3d.api.dto.request.UsarImpressoraRequest;
+import com.print3d.api.dto.response.FilaImpressaoResponse;
 import com.print3d.api.dto.response.ImpressoraResponse;
 import com.print3d.api.model.*;
 import com.print3d.api.repository.*;
@@ -27,6 +28,8 @@ public class ImpressoraService {
     private final FilamentoRepository filamentoRepository;
     private final NotificacaoService notificacaoService;
     private final MovimentacaoEstoqueService movimentacaoService;
+    private final ConfiguracaoService configuracaoService;
+    private final FilaImpressaoRepository filaRepository;
 
     public List<ImpressoraResponse> listarTodas() {
         return impressoraRepository.findAllByOrderByNomeAsc()
@@ -173,9 +176,16 @@ public class ImpressoraService {
                 .filter(m -> !m.getId().equals(membroQueUsou.getId())) // não notifica quem acabou de usar
                 .forEach(m -> notificacaoService.impressoraLiberada(m, impressora.getNome()));
 
-        // Alerta de filamento baixo — menos de 100g
+        // Notifica o primeiro da fila que a impressora foi liberada
+        filaRepository.findByImpressoraIdOrderByCriadoEmAsc(impressoraId)
+                .stream().findFirst()
+                .ifPresent(entrada -> notificacaoService.vezNaFila(
+                        entrada.getMembro(), impressora.getNome()));
+
+        // Alerta de filamento baixo — threshold configurável
+        java.math.BigDecimal alertaGramas = configuracaoService.getAlertaFilamentoGramas();
         if (filamento != null
-                && filamento.getPesoDisponivelGramas().compareTo(new java.math.BigDecimal("100")) < 0
+                && filamento.getPesoDisponivelGramas().compareTo(alertaGramas) < 0
                 && filamento.getStatus() != com.print3d.api.model.Filamento.Status.ESGOTADO) {
             // Salva nome e gramas antes do forEach para evitar LazyInitializationException
             String nomeFilamento = filamento.getNome();
@@ -196,6 +206,62 @@ public class ImpressoraService {
         impressora.setFilamentoAtualId(null);
 
         return ImpressoraResponse.from(impressoraRepository.save(impressora));
+    }
+
+    // ---- Fila de impressão ----
+
+    public List<FilaImpressaoResponse> verFila(Long impressoraId) {
+        if (!impressoraRepository.existsById(impressoraId))
+            throw new RuntimeException("Impressora não encontrada: " + impressoraId);
+        List<FilaImpressao> fila = filaRepository.findByImpressoraIdOrderByCriadoEmAsc(impressoraId);
+        java.util.concurrent.atomic.AtomicInteger pos = new java.util.concurrent.atomic.AtomicInteger(1);
+        return fila.stream()
+                .map(f -> FilaImpressaoResponse.from(f, pos.getAndIncrement()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public FilaImpressaoResponse entrarNaFila(Long impressoraId, String emailMembro,
+                                               UsarImpressoraRequest request) {
+        Impressora impressora = impressoraRepository.findById(impressoraId)
+                .orElseThrow(() -> new RuntimeException("Impressora não encontrada"));
+
+        if (impressora.getStatus() == Impressora.Status.LIVRE) {
+            throw new RuntimeException("Impressora está livre — use /usar diretamente.");
+        }
+        if (impressora.getStatus() == Impressora.Status.MANUTENCAO) {
+            throw new RuntimeException("Impressora está em manutenção e não pode receber fila.");
+        }
+
+        Membro membro = membroRepository.findByEmail(emailMembro)
+                .orElseThrow(() -> new RuntimeException("Membro não encontrado"));
+
+        if (filaRepository.existsByMembroIdAndImpressoraId(membro.getId(), impressoraId)) {
+            throw new RuntimeException("Você já está na fila desta impressora.");
+        }
+
+        FilaImpressao entrada = FilaImpressao.builder()
+                .impressora(impressora)
+                .membro(membro)
+                .produtoNome(request.getProdutoNome())
+                .quantidade(request.getQuantidade())
+                .filamentoId(request.getFilamentoId())
+                .build();
+
+        FilaImpressao salvo = filaRepository.save(entrada);
+        List<FilaImpressao> filaAtual = filaRepository.findByImpressoraIdOrderByCriadoEmAsc(impressoraId);
+        int posicao = filaAtual.indexOf(salvo) + 1;
+        return FilaImpressaoResponse.from(salvo, posicao);
+    }
+
+    @Transactional
+    public void sairDaFila(Long impressoraId, String emailMembro) {
+        Membro membro = membroRepository.findByEmail(emailMembro)
+                .orElseThrow(() -> new RuntimeException("Membro não encontrado"));
+        if (!filaRepository.existsByMembroIdAndImpressoraId(membro.getId(), impressoraId)) {
+            throw new RuntimeException("Você não está na fila desta impressora.");
+        }
+        filaRepository.deleteByMembroIdAndImpressoraId(membro.getId(), impressoraId);
     }
 
     @Transactional

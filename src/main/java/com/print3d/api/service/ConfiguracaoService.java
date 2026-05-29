@@ -26,18 +26,32 @@ public class ConfiguracaoService {
     public Map<String, String> listarTodas() {
         Map<String, String> mapa = new HashMap<>();
         // Valores padrão — sobrescritos pelo banco se existirem
-        mapa.put(Configuracao.PERCENTUAL_REPASSE,    "70");
-        mapa.put(Configuracao.MULTIPLICADOR_EXTERNO, "2.5");
-        mapa.put(Configuracao.MULTIPLICADOR_INTERNO, "1.5");
+        mapa.put(Configuracao.PERCENTUAL_REPASSE,      "70");
+        mapa.put(Configuracao.MULTIPLICADOR_EXTERNO,   "2.5");
+        mapa.put(Configuracao.MULTIPLICADOR_INTERNO,   "1.5");
+        mapa.put(Configuracao.ALERTA_FILAMENTO_GRAMAS, "100");
+        mapa.put(Configuracao.NOME_ENTIDADE,           "Print3D");
         configuracaoRepository.findAll().forEach(c -> mapa.put(c.getChave(), c.getValor()));
         return mapa;
     }
 
-    // Busca uma config pelo nome — retorna valor padrão se não existir
+    // Busca uma config numérica — retorna valor padrão se não existir
     public BigDecimal getBigDecimal(String chave, BigDecimal defaultValor) {
         return configuracaoRepository.findByChave(chave)
                 .map(c -> new BigDecimal(c.getValor()))
                 .orElse(defaultValor);
+    }
+
+    // Busca uma config de texto — retorna valor padrão se não existir
+    public String getString(String chave, String defaultValor) {
+        return configuracaoRepository.findByChave(chave)
+                .map(Configuracao::getValor)
+                .orElse(defaultValor);
+    }
+
+    // Limite de gramas para alerta de filamento baixo
+    public BigDecimal getAlertaFilamentoGramas() {
+        return getBigDecimal(Configuracao.ALERTA_FILAMENTO_GRAMAS, new BigDecimal("100"));
     }
 
     // Percentual global de repasse

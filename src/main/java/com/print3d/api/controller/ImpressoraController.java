@@ -3,6 +3,7 @@ package com.print3d.api.controller;
 import com.print3d.api.dto.request.FinalizarImpressoraRequest;
 import com.print3d.api.dto.request.ImpressoraRequest;
 import com.print3d.api.dto.request.UsarImpressoraRequest;
+import com.print3d.api.dto.response.FilaImpressaoResponse;
 import com.print3d.api.dto.response.ImpressoraResponse;
 import com.print3d.api.model.Impressora;
 import com.print3d.api.service.ImpressoraService;
@@ -83,5 +84,29 @@ public class ImpressoraController {
                                                             @RequestBody Map<String, String> body) {
         Impressora.Status novoStatus = Impressora.Status.valueOf(body.get("status"));
         return ResponseEntity.ok(impressoraService.alterarStatus(id, novoStatus));
+    }
+
+    // ---- Fila de impressão ----
+
+    // Qualquer autenticado pode ver a fila de uma impressora
+    @GetMapping("/{id}/fila")
+    public ResponseEntity<List<FilaImpressaoResponse>> verFila(@PathVariable Long id) {
+        return ResponseEntity.ok(impressoraService.verFila(id));
+    }
+
+    // Membro entra na fila quando a impressora está ocupada
+    @PostMapping("/{id}/fila")
+    public ResponseEntity<FilaImpressaoResponse> entrarNaFila(@PathVariable Long id,
+                                                               @RequestBody UsarImpressoraRequest request,
+                                                               Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(impressoraService.entrarNaFila(id, principal.getName(), request));
+    }
+
+    // Membro sai da fila
+    @DeleteMapping("/{id}/fila")
+    public ResponseEntity<Void> sairDaFila(@PathVariable Long id, Principal principal) {
+        impressoraService.sairDaFila(id, principal.getName());
+        return ResponseEntity.noContent().build();
     }
 }
