@@ -9,4 +9,5 @@ import java.util.List;
 public interface ImpressoraRepository extends JpaRepository<Impressora, Long> {
     List<Impressora> findByStatus(Impressora.Status status);
     List<Impressora> findAllByOrderByNomeAsc();
+    boolean existsByMembroAtualIdAndStatus(Long membroId, Impressora.Status status);
 }

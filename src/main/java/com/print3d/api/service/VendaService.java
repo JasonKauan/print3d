@@ -6,6 +6,7 @@ import com.print3d.api.dto.response.VendaResponse;
 import com.print3d.api.model.Membro;
 import com.print3d.api.model.Produto;
 import com.print3d.api.model.Venda;
+import com.print3d.api.repository.ImpressoraRepository;
 import com.print3d.api.repository.MembroRepository;
 import com.print3d.api.repository.ProdutoRepository;
 import com.print3d.api.repository.VendaRepository;
@@ -24,6 +25,7 @@ public class VendaService {
     private final VendaRepository vendaRepository;
     private final MembroRepository membroRepository;
     private final ProdutoRepository produtoRepository;
+    private final ImpressoraRepository impressoraRepository;
     private final EmailService emailService;
     private final ConfiguracaoService configuracaoService;
     private final NotificacaoService notificacaoService;
@@ -51,6 +53,14 @@ public class VendaService {
     public VendaResponse criar(VendaRequest request) {
         Membro membro = membroRepository.findById(request.getMembroId())
                 .orElseThrow(() -> new RuntimeException("Membro não encontrado: " + request.getMembroId()));
+
+        // Valida que o membro está usando uma impressora no momento
+        boolean usandoImpressora = impressoraRepository.existsByMembroAtualIdAndStatus(
+                membro.getId(), com.print3d.api.model.Impressora.Status.OCUPADA);
+        if (!usandoImpressora) {
+            throw new RuntimeException(
+                    "O produtor \"" + membro.getNome() + "\" precisa estar usando uma impressora para registrar uma venda.");
+        }
 
         BigDecimal percentual = configuracaoService
                 .getPercentualRepasseMembro(membro.getId())

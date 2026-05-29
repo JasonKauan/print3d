@@ -26,6 +26,8 @@ public class ImpressaoService {
     private final MembroRepository membroRepository;
     private final ImpressoraRepository impressoraRepository;
     private final FilamentoRepository filamentoRepository;
+    private final MovimentacaoEstoqueService movimentacaoService;
+    private final ConfiguracaoService configuracaoService;
 
     public List<ImpressaoResponse> listarTodas() {
         return impressaoRepository.findAllByOrderByDataImpressaoDesc()
@@ -56,16 +58,37 @@ public class ImpressaoService {
             impressora = impressoraRepository.findById(request.getImpressoraId()).orElse(null);
         }
 
-        // Resolve filamento e calcula custo — opcional
+        // Resolve filamento, calcula custo e desconta gramas — opcional
         Filamento filamento = null;
         BigDecimal custoFilamento = null;
         if (request.getFilamentoId() != null) {
             filamento = filamentoRepository.findById(request.getFilamentoId()).orElse(null);
             if (filamento != null && request.getGramasUsadas() != null
                     && request.getGramasUsadas().compareTo(BigDecimal.ZERO) > 0) {
+
                 custoFilamento = request.getGramasUsadas()
                         .multiply(filamento.getCustoPorGrama())
                         .setScale(2, RoundingMode.HALF_UP);
+
+                // Desconta gramas do filamento
+                BigDecimal estoqueAntes = filamento.getPesoDisponivelGramas();
+                BigDecimal novoDisponivel = estoqueAntes.subtract(request.getGramasUsadas());
+                if (novoDisponivel.compareTo(BigDecimal.ZERO) < 0) novoDisponivel = BigDecimal.ZERO;
+                filamento.setPesoDisponivelGramas(novoDisponivel);
+                if (novoDisponivel.compareTo(BigDecimal.ZERO) == 0) {
+                    filamento.setStatus(Filamento.Status.ESGOTADO);
+                }
+                filamentoRepository.save(filamento);
+
+                // Registra consumo no histórico de estoque
+                movimentacaoService.registrarConsumoFilamento(filamento, request.getGramasUsadas(), estoqueAntes, membro);
+
+                // Alerta de filamento baixo
+                BigDecimal alertaGramas = configuracaoService.getAlertaFilamentoGramas();
+                if (novoDisponivel.compareTo(alertaGramas) < 0
+                        && filamento.getStatus() != Filamento.Status.ESGOTADO) {
+                    // Notificação assíncrona já tratada pelo NotificacaoService via ImpressoraService — aqui só log
+                }
             }
         }
 
