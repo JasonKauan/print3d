@@ -21,7 +21,7 @@ public class FilamentoController {
     private final FilamentoService filamentoService;
 
     // Todos autenticados podem ver filamentos disponíveis
-    @GetMapping
+    @GetMapping("/filamentos")
     public ResponseEntity<List<FilamentoResponse>> listar(
             @RequestParam(required = false) Boolean disponiveis) {
         if (Boolean.TRUE.equals(disponiveis)) {
