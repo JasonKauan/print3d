@@ -12,8 +12,9 @@ public class ProdutoResponse {
     private String nome;
     private String descricao;
     private String fotoUrl;
-    private BigDecimal preco;
     private Integer estoque;
+    private BigDecimal preco;
+    private Double pesoGramas;
     private LocalDateTime criadoEm;
 
     public static ProdutoResponse from(Produto p) {
@@ -24,6 +25,7 @@ public class ProdutoResponse {
                 .fotoUrl(p.getFotoUrl())
                 .preco(p.getPreco())
                 .estoque(p.getEstoque())
+                .pesoGramas(p.getPesoGramas())
                 .criadoEm(p.getCriadoEm())
                 .build();
     }

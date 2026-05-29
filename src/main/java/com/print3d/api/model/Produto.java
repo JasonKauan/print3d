@@ -28,6 +28,9 @@ public class Produto {
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
 
+    @Column(name = "peso_gramas", length = 10, precision = 2)
+    private double pesoGramas;
+
     // Preço de venda em reais
     @Column(nullable = false, precision = 10, scale = 2)
     @Builder.Default

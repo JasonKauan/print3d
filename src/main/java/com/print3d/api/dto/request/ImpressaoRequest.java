@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -19,8 +20,13 @@ public class ImpressaoRequest {
     private Integer quantidade = 1;
 
     private String tempoImpressao;
-
     private LocalDate dataImpressao;
-
     private String observacao;
+
+    // Opcional — qual impressora foi usada
+    private Long impressoraId;
+
+    // Opcional — qual filamento foi usado e quantas gramas
+    private Long filamentoId;
+    private BigDecimal gramasUsadas;
 }
