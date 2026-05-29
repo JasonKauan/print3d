@@ -34,5 +34,6 @@ public class MovimentacaoEstoqueResponse {
                 .membroNome(m.getMembro() != null ? m.getMembro().getNome() : "Sistema")
                 .criadoEm(m.getCriadoEm())
                 .build();
+
     }
 }
