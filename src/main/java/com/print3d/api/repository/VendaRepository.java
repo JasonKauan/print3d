@@ -39,6 +39,16 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
     @Query("SELECT COUNT(v) FROM Venda v WHERE v.dataVenda BETWEEN :inicio AND :fim")
     long contarVendasPorPeriodo(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 
+    // Totais por membro em período — usados no relatório mensal
+    @Query("SELECT COALESCE(SUM(v.valorTotal), 0) FROM Venda v WHERE v.membro.id = :membroId AND v.dataVenda BETWEEN :inicio AND :fim")
+    java.math.BigDecimal somarVendasMembroPeriodo(@Param("membroId") Long membroId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT COALESCE(SUM(v.repasse), 0) FROM Venda v WHERE v.membro.id = :membroId AND v.dataVenda BETWEEN :inicio AND :fim")
+    java.math.BigDecimal somarRepasseMembroPeriodo(@Param("membroId") Long membroId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT COUNT(v) FROM Venda v WHERE v.membro.id = :membroId AND v.dataVenda BETWEEN :inicio AND :fim")
+    long contarVendasMembroPeriodo(@Param("membroId") Long membroId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
     // Top 5 produtos mais vendidos (nome + quantidade + receita)
     @Query("""
         SELECT new map(

@@ -3,9 +3,11 @@ package com.print3d.api;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableAsync  // habilita envio de email em background com @Async
+@EnableAsync
+@EnableScheduling
 public class ApiApplication {
 
 	public static void main(String[] args) {

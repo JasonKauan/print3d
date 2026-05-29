@@ -129,6 +129,92 @@ public class EmailService {
         enviar(destinatario, assunto, corpo);
     }
 
+    // Relatório mensal individual do membro
+    @Async
+    public void enviarRelatorioMensal(String destinatario, String nome, String nomeMes,
+                                      long impressoes, long pecas,
+                                      java.math.BigDecimal vendas, java.math.BigDecimal repasse) {
+        String assunto = "Seu resumo de " + nomeMes + " — Print3D";
+        String corpo = """
+            <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+              <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
+                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <p style="color:#888;margin:4px 0 0;font-size:13px">Relatório mensal — %s</p>
+              </div>
+              <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
+                <h3 style="color:#1e2333">Olá, %s! 👋</h3>
+                <p style="color:#555">Aqui está um resumo da sua atividade em <strong>%s</strong>:</p>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0">
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Impressões</p>
+                    <p style="margin:6px 0 0;font-size:28px;font-weight:700;color:#4f7cff">%d</p>
+                  </div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Peças produzidas</p>
+                    <p style="margin:6px 0 0;font-size:28px;font-weight:700;color:#4f7cff">%d</p>
+                  </div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Vendas</p>
+                    <p style="margin:6px 0 0;font-size:22px;font-weight:700;color:#1e2333">R$ %.2f</p>
+                  </div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Repasse gerado</p>
+                    <p style="margin:6px 0 0;font-size:22px;font-weight:700;color:#2ecc8a">R$ %.2f</p>
+                  </div>
+                </div>
+
+                <p style="color:#888;font-size:13px">Acesse o sistema para ver seu extrato detalhado.</p>
+                <p style="color:#aaa;font-size:12px;margin-top:20px">Print3D — Relatório gerado automaticamente no 1º dia do mês.</p>
+              </div>
+            </div>
+            """.formatted(nomeMes, nome, nomeMes, impressoes, pecas, vendas, repasse);
+        enviar(destinatario, assunto, corpo);
+    }
+
+    // Relatório mensal consolidado para ADMINs
+    @Async
+    public void enviarRelatorioConsolidado(String destinatario, String nome, String nomeMes,
+                                           java.math.BigDecimal receitaTotal, long impressoesTotal,
+                                           int membrosAtivos, java.math.BigDecimal repassePendente) {
+        String assunto = "Relatório consolidado de " + nomeMes + " — Print3D";
+        String corpo = """
+            <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+              <div style="background:#0f1117;padding:24px;border-radius:12px 12px 0 0">
+                <h2 style="color:#4f7cff;margin:0">◈ Print3D</h2>
+                <p style="color:#888;margin:4px 0 0;font-size:13px">Consolidado administrativo — %s</p>
+              </div>
+              <div style="background:#f9f9f9;padding:24px;border-radius:0 0 12px 12px">
+                <h3 style="color:#1e2333">Resumo da entidade — %s</h3>
+                <p style="color:#555">Olá, <strong>%s</strong>! Confira os números do mês.</p>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0">
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Receita total</p>
+                    <p style="margin:6px 0 0;font-size:22px;font-weight:700;color:#2ecc8a">R$ %.2f</p>
+                  </div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Total impressões</p>
+                    <p style="margin:6px 0 0;font-size:28px;font-weight:700;color:#4f7cff">%d</p>
+                  </div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Membros ativos</p>
+                    <p style="margin:6px 0 0;font-size:28px;font-weight:700;color:#1e2333">%d</p>
+                  </div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;text-align:center">
+                    <p style="margin:0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Repasse pendente</p>
+                    <p style="margin:6px 0 0;font-size:22px;font-weight:700;color:#f59e0b">R$ %.2f</p>
+                  </div>
+                </div>
+
+                <p style="color:#888;font-size:13px">Acesse o Painel ADM para detalhes completos e rankings.</p>
+                <p style="color:#aaa;font-size:12px;margin-top:20px">Print3D — Relatório gerado automaticamente no 1º dia do mês.</p>
+              </div>
+            </div>
+            """.formatted(nomeMes, nomeMes, nome, receitaTotal, impressoesTotal, membrosAtivos, repassePendente);
+        enviar(destinatario, assunto, corpo);
+    }
+
     // Método base — envia o email de fato
     private void enviar(String destinatario, String assunto, String corpo) {
         try {

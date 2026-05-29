@@ -26,6 +26,13 @@ public interface ImpressaoRepository extends JpaRepository<Impressao, Long> {
     @Query("SELECT COUNT(i) FROM Impressao i WHERE i.dataImpressao BETWEEN :inicio AND :fim")
     long contarPorPeriodo(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 
+    // Totais por membro em período — usados no relatório mensal
+    @Query("SELECT COUNT(i) FROM Impressao i WHERE i.membro.id = :membroId AND i.dataImpressao BETWEEN :inicio AND :fim")
+    long contarPorMembroEPeriodo(@Param("membroId") Long membroId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT COALESCE(SUM(i.quantidade), 0) FROM Impressao i WHERE i.membro.id = :membroId AND i.dataImpressao BETWEEN :inicio AND :fim")
+    long somarPecasPorMembroEPeriodo(@Param("membroId") Long membroId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
     // Top membros mais produtivos — ranking do painel ADM
     @Query("""
         SELECT new map(
