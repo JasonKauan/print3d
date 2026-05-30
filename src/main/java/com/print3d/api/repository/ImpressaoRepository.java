@@ -33,6 +33,20 @@ public interface ImpressaoRepository extends JpaRepository<Impressao, Long> {
     @Query("SELECT COALESCE(SUM(i.quantidade), 0) FROM Impressao i WHERE i.membro.id = :membroId AND i.dataImpressao BETWEEN :inicio AND :fim")
     long somarPecasPorMembroEPeriodo(@Param("membroId") Long membroId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 
+    // Estatísticas de consumo agrupadas por produto — usado no catálogo
+    @Query("""
+        SELECT new map(
+            i.produtoNome        as produtoNome,
+            COUNT(i)             as totalImpressoes,
+            COALESCE(SUM(i.quantidade), 0)      as totalPecas,
+            COALESCE(SUM(i.gramasUsadas), 0)    as totalGramas,
+            COALESCE(SUM(i.custoFilamento), 0)  as totalCustoFilamento
+        )
+        FROM Impressao i
+        GROUP BY i.produtoNome
+        """)
+    List<Map<String, Object>> estatisticasPorProduto();
+
     // Top membros mais produtivos — ranking do painel ADM
     @Query("""
         SELECT new map(

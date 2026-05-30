@@ -1,6 +1,7 @@
 package com.print3d.api.controller;
 
 import com.print3d.api.dto.response.ProdutoResponse;
+import com.print3d.api.repository.ImpressaoRepository;
 import com.print3d.api.service.ProdutoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/produtos")
@@ -19,11 +22,24 @@ import java.util.List;
 public class ProdutoController {
 
     private final ProdutoService produtoService;
+    private final ImpressaoRepository impressaoRepository;
 
     // Público — qualquer um pode ver o catálogo (configurado no SecurityConfig)
     @GetMapping
     public ResponseEntity<List<ProdutoResponse>> listar() {
         return ResponseEntity.ok(produtoService.listarTodos());
+    }
+
+    // Estatísticas de consumo por produto — mapa produtoNome → stats
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> stats() {
+        Map<String, Object> mapa = impressaoRepository.estatisticasPorProduto()
+                .stream()
+                .collect(Collectors.toMap(
+                        m -> (String) m.get("produtoNome"),
+                        m -> m
+                ));
+        return ResponseEntity.ok(mapa);
     }
 
     @GetMapping("/{id}")
@@ -38,10 +54,11 @@ public class ProdutoController {
             @RequestParam(required = false) String descricao,
             @RequestParam(required = false) BigDecimal preco,
             @RequestParam(required = false) Integer estoque,
+            @RequestParam(required = false) String categoria,
             @RequestParam(required = false) MultipartFile foto) throws IOException {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(produtoService.criar(nome, descricao, preco, estoque, foto));
+                .body(produtoService.criar(nome, descricao, preco, estoque, categoria, foto));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -51,9 +68,18 @@ public class ProdutoController {
             @RequestParam(required = false) String descricao,
             @RequestParam(required = false) BigDecimal preco,
             @RequestParam(required = false) Integer estoque,
+            @RequestParam(required = false) String categoria,
             @RequestParam(required = false) MultipartFile foto) throws IOException {
 
-        return ResponseEntity.ok(produtoService.atualizar(id, nome, descricao, preco, estoque, foto));
+        return ResponseEntity.ok(produtoService.atualizar(id, nome, descricao, preco, estoque, categoria, foto));
+    }
+
+    // PATCH só para categoria — chamado pelo ícone de edição inline no catálogo
+    @PatchMapping("/{id}/categoria")
+    public ResponseEntity<ProdutoResponse> atualizarCategoria(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(produtoService.atualizarCategoria(id, body.get("categoria")));
     }
 
     @DeleteMapping("/{id}")

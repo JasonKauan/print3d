@@ -41,6 +41,10 @@ public class Produto {
     @Builder.Default
     private Integer estoque = 0;
 
+    // Categoria livre — ex: "Miniaturas", "Peças técnicas", "Decoração"
+    @Column(length = 100)
+    private String categoria;
+
     @Column(nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime criadoEm = LocalDateTime.now();

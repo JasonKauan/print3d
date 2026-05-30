@@ -37,7 +37,7 @@ public class ProdutoService {
 
     public ProdutoResponse criar(String nome, String descricao,
                                  BigDecimal preco, Integer estoque,
-                                 MultipartFile foto) throws IOException {
+                                 String categoria, MultipartFile foto) throws IOException {
         String fotoUrl = uploadFoto(foto);
 
         Produto produto = Produto.builder()
@@ -45,32 +45,38 @@ public class ProdutoService {
                 .descricao(descricao)
                 .preco(preco != null ? preco : BigDecimal.ZERO)
                 .estoque(estoque != null ? estoque : 0)
+                .categoria(categoria)
                 .fotoUrl(fotoUrl)
                 .build();
 
         Produto salvo = produtoRepository.save(produto);
-
-        // Registra entrada inicial no histórico de estoque
         movimentacaoService.registrarEntradaProduto(salvo, null);
-
         return ProdutoResponse.from(salvo);
     }
 
     public ProdutoResponse atualizar(Long id, String nome, String descricao,
                                      BigDecimal preco, Integer estoque,
-                                     MultipartFile foto) throws IOException {
+                                     String categoria, MultipartFile foto) throws IOException {
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado: " + id));
 
         produto.setNome(nome);
-        if (descricao != null) produto.setDescricao(descricao);
-        if (preco != null)     produto.setPreco(preco);
-        if (estoque != null)   produto.setEstoque(estoque);
+        if (descricao != null)  produto.setDescricao(descricao);
+        if (preco != null)      produto.setPreco(preco);
+        if (estoque != null)    produto.setEstoque(estoque);
+        if (categoria != null)  produto.setCategoria(categoria);
 
         if (foto != null && !foto.isEmpty()) {
             produto.setFotoUrl(uploadFoto(foto));
         }
 
+        return ProdutoResponse.from(produtoRepository.save(produto));
+    }
+
+    public ProdutoResponse atualizarCategoria(Long id, String categoria) {
+        Produto produto = produtoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado: " + id));
+        produto.setCategoria(categoria != null && !categoria.isBlank() ? categoria : null);
         return ProdutoResponse.from(produtoRepository.save(produto));
     }
 
