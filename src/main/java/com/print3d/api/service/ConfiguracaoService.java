@@ -31,6 +31,7 @@ public class ConfiguracaoService {
         mapa.put(Configuracao.MULTIPLICADOR_INTERNO,   "1.5");
         mapa.put(Configuracao.ALERTA_FILAMENTO_GRAMAS, "100");
         mapa.put(Configuracao.NOME_ENTIDADE,           "Print3D");
+        mapa.put(Configuracao.CATEGORIAS_PRODUTO,      "");
         configuracaoRepository.findAll().forEach(c -> mapa.put(c.getChave(), c.getValor()));
         return mapa;
     }

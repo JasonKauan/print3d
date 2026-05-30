@@ -40,7 +40,8 @@ public class Configuracao {
     public static final String MULTIPLICADOR_INTERNO    = "MULTIPLICADOR_INTERNO";    // default: 1.5
     public static final String ALERTA_FILAMENTO_GRAMAS  = "ALERTA_FILAMENTO_GRAMAS";  // default: 100
     public static final String NOME_ENTIDADE            = "NOME_ENTIDADE";            // default: Print3D
+    public static final String CATEGORIAS_PRODUTO       = "CATEGORIAS_PRODUTO";       // CSV: "Cat1,Cat2"
 
     // Chaves que contêm valores não-numéricos
-    public static final java.util.Set<String> CHAVES_TEXTO = java.util.Set.of(NOME_ENTIDADE);
+    public static final java.util.Set<String> CHAVES_TEXTO = java.util.Set.of(NOME_ENTIDADE, CATEGORIAS_PRODUTO);
 }
