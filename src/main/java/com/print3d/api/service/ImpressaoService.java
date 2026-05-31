@@ -10,6 +10,7 @@ import com.print3d.api.repository.FilamentoRepository;
 import com.print3d.api.repository.ImpressaoRepository;
 import com.print3d.api.repository.ImpressoraRepository;
 import com.print3d.api.repository.MembroRepository;
+import com.print3d.api.repository.ProdutoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ public class ImpressaoService {
     private final MembroRepository membroRepository;
     private final ImpressoraRepository impressoraRepository;
     private final FilamentoRepository filamentoRepository;
+    private final ProdutoRepository produtoRepository;
     private final MovimentacaoEstoqueService movimentacaoService;
     private final ConfiguracaoService configuracaoService;
 
@@ -105,7 +107,19 @@ public class ImpressaoService {
                 .observacao(request.getObservacao())
                 .build();
 
-        return ImpressaoResponse.from(impressaoRepository.save(impressao));
+        ImpressaoResponse response = ImpressaoResponse.from(impressaoRepository.save(impressao));
+
+        // Soma quantidade produzida ao estoque do produto (se existir no catálogo)
+        if (request.getProdutoNome() != null && request.getQuantidade() != null && request.getQuantidade() > 0) {
+            int qtd = request.getQuantidade();
+            produtoRepository.findByNome(request.getProdutoNome()).ifPresent(produto -> {
+                produto.setEstoque(produto.getEstoque() + qtd);
+                produtoRepository.save(produto);
+                movimentacaoService.registrarEntradaImpressao(produto, qtd, membro);
+            });
+        }
+
+        return response;
     }
 
     public ImpressaoResponse atualizar(Long id, ImpressaoRequest request) {

@@ -52,6 +52,16 @@ public class VendaService {
         Membro membro = membroRepository.findById(request.getMembroId())
                 .orElseThrow(() -> new RuntimeException("Membro não encontrado: " + request.getMembroId()));
 
+        // Valida estoque disponível
+        int qtdSolicitada = request.getQuantidade() != null ? request.getQuantidade() : 1;
+        produtoRepository.findByNome(request.getProdutoNome()).ifPresent(produto -> {
+            if (produto.getEstoque() < qtdSolicitada) {
+                throw new RuntimeException(
+                    "Estoque insuficiente para \"" + produto.getNome() + "\". " +
+                    "Disponível: " + produto.getEstoque() + " unid., solicitado: " + qtdSolicitada + " unid.");
+            }
+        });
+
         BigDecimal percentual = configuracaoService
                 .getPercentualRepasseMembro(membro.getId())
                 .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);

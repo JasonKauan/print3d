@@ -30,6 +30,7 @@ public class ImpressoraService {
     private final MovimentacaoEstoqueService movimentacaoService;
     private final ConfiguracaoService configuracaoService;
     private final FilaImpressaoRepository filaRepository;
+    private final com.print3d.api.repository.ProdutoRepository produtoRepository;
 
     public List<ImpressoraResponse> listarTodas() {
         return impressoraRepository.findAllByOrderByNomeAsc()
@@ -168,6 +169,16 @@ public class ImpressoraService {
                 .observacao(request.getObservacao())
                 .build();
         impressaoRepository.save(impressao);
+
+        // Soma quantidade produzida ao estoque do produto (se existir no catálogo)
+        if (impressora.getProdutoEmImpressao() != null && impressora.getQuantidadeEmImpressao() != null) {
+            int qtdProduzida = impressora.getQuantidadeEmImpressao();
+            produtoRepository.findByNome(impressora.getProdutoEmImpressao()).ifPresent(produto -> {
+                produto.setEstoque(produto.getEstoque() + qtdProduzida);
+                produtoRepository.save(produto);
+                movimentacaoService.registrarEntradaImpressao(produto, qtdProduzida, requisitante);
+            });
+        }
 
         // Notifica todos os membros ativos que a impressora foi liberada
         Membro membroQueUsou = impressora.getMembroAtual();
