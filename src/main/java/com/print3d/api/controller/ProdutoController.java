@@ -54,11 +54,12 @@ public class ProdutoController {
             @RequestParam(required = false) String descricao,
             @RequestParam(required = false) BigDecimal preco,
             @RequestParam(required = false) Integer estoque,
+            @RequestParam(required = false) Double pesoGramas,
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) MultipartFile foto) throws IOException {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(produtoService.criar(nome, descricao, preco, estoque, categoria, foto));
+                .body(produtoService.criar(nome, descricao, preco, estoque, pesoGramas, categoria, foto));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -68,10 +69,11 @@ public class ProdutoController {
             @RequestParam(required = false) String descricao,
             @RequestParam(required = false) BigDecimal preco,
             @RequestParam(required = false) Integer estoque,
+            @RequestParam(required = false) Double pesoGramas,
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) MultipartFile foto) throws IOException {
 
-        return ResponseEntity.ok(produtoService.atualizar(id, nome, descricao, preco, estoque, categoria, foto));
+        return ResponseEntity.ok(produtoService.atualizar(id, nome, descricao, preco, estoque, pesoGramas, categoria, foto));
     }
 
     // PATCH só para categoria — chamado pelo ícone de edição inline no catálogo

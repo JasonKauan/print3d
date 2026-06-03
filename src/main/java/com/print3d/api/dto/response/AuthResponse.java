@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 // Resposta do login — o token que o frontend vai guardar e enviar em cada request
 @Data @Builder @AllArgsConstructor
 public class AuthResponse {
+    private Long id;
     private String token;
     private String email;
     private String nome;

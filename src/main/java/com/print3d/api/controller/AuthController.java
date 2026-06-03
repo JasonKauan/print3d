@@ -42,6 +42,7 @@ public class AuthController {
         String token = jwtUtil.gerarToken(membro.getEmail());
 
         return ResponseEntity.ok(AuthResponse.builder()
+                .id(membro.getId())
                 .token(token)
                 .email(membro.getEmail())
                 .nome(membro.getNome())
